@@ -148,27 +148,27 @@ def generate_all_sprites():
     ]
     write_png("sun", sun_rows)
 
-    # 4. Photon Torpedo (8x8 bright diamond projectile)
+    # 4. Photon Torpedo (8x8 bright photon sphere)
     torp_rows = [
         "........",
-        "........",
-        "...##...",
         "..####..",
+        ".######.",
+        ".######.",
+        ".######.",
         "..####..",
-        "...##...",
         "........",
         "........",
     ]
     write_png("torpedo", torp_rows)
 
-    # 5. Phaser Bolt (8x8 concentrated energy pulse)
+    # 5. Phaser Bolt (8x8 high-energy star/cross pulse, distinct from torpedo)
     phaser_rows = [
-        "........",
         "...##...",
-        "..####..",
+        "...##...",
         ".######.",
+        "########",
         ".######.",
-        "..####..",
+        "...##...",
         "...##...",
         "........",
     ]

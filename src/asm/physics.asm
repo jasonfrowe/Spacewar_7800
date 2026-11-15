@@ -38,12 +38,12 @@ Y_MIN_HI    = 18        ; Top arena border (below HUD)
 Y_MAX_HI    = 182       ; Bottom arena border
 
 ; Physics & Combat Tuning Constants
-THRUST_ACC  = $0006     ; Smooth thrust acceleration (6/256 unit/frame^2)
-MAX_VEL_HI  = $01       ; Clamp velocity to +/- $01C0 (~1.75 units/frame)
-MAX_VEL_LO  = $C0
-ROT_SPEED   = $0300     ; Smooth rotation (~1.4 sec per full 360 turn)
-TORP_SPEED  = $01C0     ; Torpedo speed (1.75 units/frame + ship velocity)
-PHASER_SPEED= $0300     ; Phaser bolt speed (3.0 units/frame)
+THRUST_ACC  = $0012     ; Strong, responsive rocket thrust (18/256 unit/frame^2)
+MAX_VEL_HI  = $01       ; Clamp velocity to +/- $01E0 (~1.875 units/frame)
+MAX_VEL_LO  = $E0
+ROT_SPEED   = $0380     ; Crisp rotation (~1.2 sec per full 360 turn)
+TORP_SPEED  = $01E0     ; Torpedo speed (1.875 units/frame + ship velocity)
+PHASER_SPEED= $0340     ; Phaser bolt speed (3.25 units/frame)
 
 ; Memory Layout ($2200 - $228F)
 sw_px       = $2200     ; (4) Ship 0, 1 X pos (8.8 fixed-point)
@@ -178,14 +178,14 @@ round_init
     lda #0
     sta sw_vx
     sta sw_vx+1
-    lda #$68            ; Smooth downward orbital velocity (+0.40 units/frame)
+    lda #$B0            ; Downward circular orbital velocity (+0.69 units/frame)
     sta sw_vy
     lda #0
     sta sw_vy+1
 
-    lda #0              ; Facing East/South-East ($2000)
+    lda #0              ; Facing South ($4000) along orbit
     sta sw_ang
-    lda #$20
+    lda #$40
     sta sw_ang+1
 
     ; Player 2 (Wedge): Starts on Right (X=122, Y=100), orbiting upward
@@ -201,14 +201,14 @@ round_init
     lda #0
     sta sw_vx+2
     sta sw_vx+3
-    lda #<-$68          ; Smooth upward orbital velocity (-0.40 units/frame)
+    lda #<-$B0          ; Upward circular orbital velocity (-0.69 units/frame)
     sta sw_vy+2
-    lda #>-$68
+    lda #>-$B0
     sta sw_vy+3
 
-    lda #0              ; Facing West/North-West ($A000)
+    lda #0              ; Facing North ($C000) along orbit
     sta sw_ang+2
-    lda #$A0
+    lda #$C0
     sta sw_ang+3
 
     ; If Gravity is OFF (Deep Space), start with zero velocity
@@ -423,8 +423,6 @@ p1_fire_torpedo
     ldx #1
     lda sw_tlife+1
     beq .p1_t_fire
-    ; Both torpedo tubes active -> fallback to phaser if available!
-    jmp p1_fire_phaser
 .p1_t_early
     rts
 .p1_t_fire
@@ -524,7 +522,6 @@ p2_fire_torpedo
     ldx #3
     lda sw_tlife+3
     beq .p2_t_fire
-    jmp p2_fire_phaser
 .p2_t_early
     rts
 .p2_t_fire
@@ -684,71 +681,9 @@ update_ship
     ; Check if Gravity is enabled (0 = Normal, 1 = Off, 2 = Repulsor)
     lda sw_grav
     cmp #1
-    bne .calc_grav
-    jmp .skip_gravity
+    beq .skip_gravity
 
-.calc_grav
-    ; Inverse-Square Gravity: a = (K_GRAV / LEN) / LEN
-    ; K_GRAV = $09000000
-    lda #0
-    sta M_N
-    sta M_N+1
-    sta M_N+2
-    lda #$09
-    sta M_N+3
-
-    lda sw_len
-    sta M_D
-    lda sw_len+1
-    sta M_D+1
-
-    ; Read all of first quotient BEFORE writing back to M_N!
-    lda M_Q
-    sta sw_tmp
-    lda M_Q+1
-    sta sw_tmp+1
-    lda M_Q+2
-    sta sw_tmp+2
-
-    ; Load first quotient into M_N for second divide by sw_len
-    lda sw_tmp
-    sta M_N
-    lda sw_tmp+1
-    sta M_N+1
-    lda sw_tmp+2
-    sta M_N+2
-    lda #0
-    sta M_N+3
-
-    ; Read resulting acceleration magnitude |a| from M_Q
-    lda M_Q
-    sta sw_tmp
-    lda M_Q+1
-    sta sw_tmp+1
-
-    ; Cap gravity acceleration at $0018 to prevent infinite slingshot
-    lda sw_tmp+1
-    bne .clamp_grav
-    lda sw_tmp
-    cmp #$18
-    bcc .grav_ok
-.clamp_grav
-    lda #$18
-    sta sw_tmp
-    lda #0
-    sta sw_tmp+1
-.grav_ok
-
-    ; If Repulsor mode (sw_grav == 2), flip direction 180 degrees
-    lda sw_grav
-    cmp #2
-    bne .do_grav_rot
-    lda sw_dir+1
-    eor #$80
-    sta sw_dir+1
-
-.do_grav_rot
-    M_ROTATE_VAR sw_tmp, sw_dir
+    jsr calc_sun_grav_vec
 
     ; Add gravitational pull to ship velocity
     clc
@@ -790,6 +725,82 @@ update_ship
 
     ; Enforce Arena Boundaries (Wrap or Bounce)
     jsr handle_screen_boundary
+    rts
+
+; =========================================================================
+; Shared Inverse-Square Gravity Routine: a = (K_GRAV / sw_len + 0.5) / sw_len
+; Input:  sw_len (distance to Sun), sw_dir (angle to Sun)
+; Output: M_XR, M_YR = gravitational acceleration vector
+; =========================================================================
+calc_sun_grav_vec
+    ; K_GRAV = $14000000 (2.25x stronger Newtonian pull, balanced with THRUST_ACC=$12)
+    lda #0
+    sta M_N
+    sta M_N+1
+    sta M_N+2
+    lda #$14
+    sta M_N+3
+
+    lda sw_len
+    sta M_D
+    lda sw_len+1
+    sta M_D+1
+
+    ; Add sw_len / 2 to first quotient so second divide rounds instead of truncating!
+    lda sw_len+1
+    lsr
+    sta sw_tmp+3
+    lda sw_len
+    ror
+    clc
+    adc M_Q
+    sta sw_tmp
+    lda M_Q+1
+    adc sw_tmp+3
+    sta sw_tmp+1
+    lda M_Q+2
+    adc #0
+    sta sw_tmp+2
+
+    ; Load rounded first quotient into M_N for second divide by sw_len
+    lda sw_tmp
+    sta M_N
+    lda sw_tmp+1
+    sta M_N+1
+    lda sw_tmp+2
+    sta M_N+2
+    lda #0
+    sta M_N+3
+
+    ; Read resulting acceleration magnitude |a| from M_Q
+    lda M_Q
+    sta sw_tmp
+    lda M_Q+1
+    sta sw_tmp+1
+
+    ; Cap gravity acceleration at $0010 near the solar corona (below THRUST_ACC=$12)
+    lda sw_tmp+1
+    bne .clamp_grav
+    lda sw_tmp
+    cmp #$10
+    bcc .grav_ok
+.clamp_grav
+    lda #$10
+    sta sw_tmp
+    lda #0
+    sta sw_tmp+1
+.grav_ok
+
+    ; If Repulsor mode (sw_grav == 2), flip direction 180 degrees
+    lda sw_grav
+    cmp #2
+    bne .do_grav_rot
+    lda sw_dir+1
+    eor #$80
+    sta sw_dir+1
+
+.do_grav_rot
+    M_ROTATE_VAR sw_tmp, sw_dir
     rts
 
 ; =========================================================================
@@ -939,13 +950,69 @@ update_torpedoes
     ldx #3
 .torp_loop
     lda sw_tlife,x
-    beq .next_torp
+    bne .torp_is_alive
+    jmp .next_torp
+.torp_is_alive
     dec sw_tlife,x
 
     txa
     asl
     tay
 
+    ; Apply Sun gravity to torpedo trajectory (unless Zero-G)
+    lda sw_grav
+    cmp #1
+    beq .move_torp
+
+    sec
+    lda #<SUN_X
+    sbc sw_tx,y
+    sta M_X
+    lda #>SUN_X
+    sbc sw_tx+1,y
+    sta M_X+1
+
+    sec
+    lda #<SUN_Y
+    sbc sw_ty,y
+    sta M_Y
+    lda #>SUN_Y
+    sbc sw_ty+1,y
+    sta M_Y+1
+
+    lda M_LEN
+    sta sw_len
+    lda M_LEN+1
+    sta sw_len+1
+    cmp #SUN_RAD_HI
+    bcs .torp_grav_ok
+    jmp .kill_torp
+.torp_grav_ok
+
+    lda M_ANG
+    sta sw_dir
+    lda M_ANG+1
+    sta sw_dir+1
+
+    jsr calc_sun_grav_vec
+
+    clc
+    lda sw_tvx,y
+    adc M_XR
+    sta sw_tvx,y
+    lda sw_tvx+1,y
+    adc M_XR+1
+    sta sw_tvx+1,y
+
+    clc
+    lda sw_tvy,y
+    adc M_YR
+    sta sw_tvy,y
+    lda sw_tvy+1,y
+    adc M_YR+1
+    sta sw_tvy+1,y
+
+.move_torp
     ; Move torpedo
     clc
     lda sw_tx,y
@@ -1003,7 +1070,9 @@ update_torpedoes
     sta sw_tlife,x
 .next_torp
     dex
-    bpl .torp_loop
+    bmi .torp_done
+    jmp .torp_loop
+.torp_done
     rts
 
 ; =========================================================================
@@ -1250,6 +1319,12 @@ apply_damage
 
 ; Destroy Ship X (0 or 1)
 destroy_ship
+    ; If round is already over (sw_state == 2), surviving winner is invulnerable
+    lda sw_state
+    cmp #2
+    bne .do_destroy
+    rts
+.do_destroy
     lda #0
     sta sw_alive,x
 
