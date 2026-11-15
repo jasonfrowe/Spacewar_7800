@@ -57,14 +57,14 @@ ai_step
     sta sw_dx+1         ; sw_dx+1 = current distance to Sun in screen units
 
     ; =====================================================================
-    ; 2. Look-Ahead Trajectory Prediction (Position 40 frames in future)
-    ;    P_pred = P + 40 * V (computed via AstroCart Hardware Multiplier)
+    ; 2. Look-Ahead Trajectory Prediction (Position 32 frames in future)
+    ;    P_pred = P + 32 * V (computed via AstroCart Hardware Multiplier)
     ; =====================================================================
     lda sw_vx+2
     sta M_A
     lda sw_vx+3
     sta M_A+1
-    lda #40
+    lda #32
     sta M_B
     lda #0
     sta M_B+1
@@ -81,7 +81,7 @@ ai_step
     sta M_A
     lda sw_vy+3
     sta M_A+1
-    lda #40
+    lda #32
     sta M_B
     lda #0
     sta M_B+1
@@ -111,12 +111,12 @@ ai_step
     sbc sw_tmp+3
     sta M_Y+1
 
-    ; Check if either current distance < 32 OR predicted future distance < 32
+    ; Check if either current distance < 22 OR predicted future distance < 20
     lda sw_dx+1
-    cmp #32
+    cmp #22
     bcc .evade_sun
     lda M_LEN+1
-    cmp #32
+    cmp #20
     bcc .evade_sun
 
     ; =====================================================================
@@ -135,11 +135,11 @@ ai_step
     lda sw_vy+3
     sta M_Y+1
 
-    ; If speed < $0088 (0.53 units/frame), boost tangentially to maintain orbit!
+    ; If speed < $0060 (0.375 units/frame), boost tangentially to maintain orbit!
     lda M_LEN+1
     bne .jmp_combat
     lda M_LEN
-    cmp #$88
+    cmp #$60
     bcc .evade_sun
 .jmp_combat
     jmp .check_combat
@@ -190,7 +190,7 @@ ai_step
     rts
 .p1_is_alive
 
-    ; Compute relative velocity (V_p1 - V_ai) * 14 for lead-target aiming
+    ; Compute relative velocity (V_p1 - V_ai) * 18 for lead-target aiming
     sec
     lda sw_vx
     sbc sw_vx+2
@@ -198,7 +198,7 @@ ai_step
     lda sw_vx+1
     sbc sw_vx+3
     sta M_A+1
-    lda #14
+    lda #18
     sta M_B
     lda #0
     sta M_B+1
@@ -218,7 +218,7 @@ ai_step
     lda sw_vy+1
     sbc sw_vy+3
     sta M_A+1
-    lda #14
+    lda #18
     sta M_B
     lda #0
     sta M_B+1
@@ -253,31 +253,48 @@ ai_step
     lda M_LEN+1
     sta sw_len+1
 
-    ; Check if the Sun is blocking the line of sight to Player 1
-    ; (|lead_angle - sun_ang| < $24, i.e. within +/- 50 degrees of the Sun)
+    ; Check if the Sun is directly blocking the line of sight to Player 1
+    ; (|lead_angle - sun_ang| < $0C, i.e. within +/- 16 degrees of the Sun's core)
     sec
     lda sw_dir+1
     sbc sw_dx
-    cmp #$24
+    cmp #$0C
     bcc .flank_around_sun
-    cmp #$DC
+    cmp #$F4
     bcc .line_of_sight_clear
 
 .flank_around_sun
-    ; Sun is between AI and Player 1! Steer tangentially around the Sun
-    ; (sun_ang + $58) to flank Player 1 and keep nose pointed away from Sun!
+    ; Sun is directly between AI and Player 1!
+    ; Aim offset by +$1C (39 deg) from the Sun to sling-shot curved Photon Torpedoes
+    ; around the Sun's gravity well AND thrust tangentially to break orbital symmetry!
     lda sw_dx
     clc
-    adc #$58
+    adc #$28
     sta sw_dir+1
     sec
     lda sw_dir+1
     sbc sw_ang+3
+    cmp #$0C
+    bcc .flank_aligned
+    cmp #$F4
+    bcs .flank_aligned
     bmi .flank_left
     jsr p2_turn_right
     rts
 .flank_left
     jsr p2_turn_left
+    rts
+.flank_aligned
+    ; Fire curved orbital torpedo around the Sun and thrust to flank!
+    lda sw_energy+1
+    cmp #35
+    bcc .flank_done
+    jsr p2_fire_torpedo
+    lda sw_frame
+    and #3
+    bne .flank_done
+    jsr p2_thrust
+.flank_done
     rts
 
 .line_of_sight_clear
@@ -285,9 +302,9 @@ ai_step
     sec
     lda sw_dir+1
     sbc sw_ang+3
-    cmp #$0A            ; Within ~14 degrees of lead angle?
+    cmp #$0B            ; Within ~15 degrees of lead angle?
     bcc .in_sights
-    cmp #$F6
+    cmp #$F5
     bcs .in_sights
 
     bmi .aim_left
@@ -297,28 +314,20 @@ ai_step
     jsr p2_turn_left
 
 .check_wide_fire
-    ; Even while turning, if within ~25 degrees and close, snap-fire phaser!
+    ; Even while turning, if within ~22 degrees ($10), fire weapon!
     sec
     lda sw_dir+1
     sbc sw_ang+3
-    cmp #$12
-    bcc .try_snap_shot
-    cmp #$EE
-    bcc .combat_done
-.try_snap_shot
-    lda sw_len+1
-    cmp #36
-    bcs .combat_done
-    lda sw_energy+1
-    cmp #30             ; Always keep 30 energy in reserve for orbital thrusters
-    bcc .combat_done
-    jsr p2_fire_phaser
+    cmp #$10
+    bcc .fire_weapons
+    cmp #$F0
+    bcs .fire_weapons
     rts
 
 .in_sights
-    ; Pursue Player 1 if far (> 55 units), energy >= 45, AND path doesn't cross Sun!
+    ; Pursue Player 1 if far (> 58 units), energy >= 45, AND path doesn't cross Sun!
     lda sw_len+1
-    cmp #55
+    cmp #58
     bcc .fire_weapons
     lda sw_frame
     and #3
@@ -327,34 +336,50 @@ ai_step
     cmp #45
     bcc .fire_weapons
 
-    ; Ensure heading is at least 65 degrees ($2E) away from Sun direction sw_dx
+    ; Ensure heading is at least 60 degrees ($2A) away from Sun direction sw_dx
     sec
     lda sw_ang+3
     sbc sw_dx
-    cmp #$2E
+    cmp #$2A
     bcc .fire_weapons
-    cmp #$D2
+    cmp #$D6
     bcs .fire_weapons
     jsr p2_thrust
 
 .fire_weapons
-    ; Fire every 8 frames when lined up and energy >= 30
-    lda sw_frame
-    and #7
-    bne .combat_done
+    ; Always keep 24 energy in reserve for orbital thrusters
     lda sw_energy+1
-    cmp #30
+    cmp #24
     bcc .combat_done
 
-    ; Close range (< 34 units): rapid Phaser; Medium/Long range (< 95 units): Photon Torpedo
+    ; Primary AI weapon: Photon Torpedoes!
+    ; If at very close range (< 22 units), mix Phasers and Torpedoes
     lda sw_len+1
-    cmp #34
-    bcc .ai_phaser
-    cmp #95
+    cmp #22
+    bcc .close_dogfight
+
+    ; Medium/Long range (up to 135 units): Fire Photon Torpedoes first!
+    cmp #135
     bcs .combat_done
-    jsr p2_fire_torpedo
-    rts
-.ai_phaser
-    jsr p2_fire_phaser
+    lda sw_tlife+2
+    beq .ai_torp
+    lda sw_tlife+3
+    beq .ai_torp
+
+    ; Both AI torpedoes are already in flight; if within 42 units, follow up with Phaser!
+    lda sw_len+1
+    cmp #42
+    bcs .combat_done
+    jmp p2_fire_phaser
+
+.close_dogfight
+    ; Close range: fire torpedo if slot open, else rapid phaser
+    lda sw_tlife+2
+    beq .ai_torp
+    jmp p2_fire_phaser
+
+.ai_torp
+    jmp p2_fire_torpedo
+
 .combat_done
     rts

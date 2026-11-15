@@ -38,12 +38,14 @@ Y_MIN_HI    = 18        ; Top arena border (below HUD)
 Y_MAX_HI    = 182       ; Bottom arena border
 
 ; Physics & Combat Tuning Constants
-THRUST_ACC  = $0012     ; Strong, responsive rocket thrust (18/256 unit/frame^2)
-MAX_VEL_HI  = $01       ; Clamp velocity to +/- $01E0 (~1.875 units/frame)
-MAX_VEL_LO  = $E0
-ROT_SPEED   = $0380     ; Crisp rotation (~1.2 sec per full 360 turn)
-TORP_SPEED  = $01E0     ; Torpedo speed (1.875 units/frame + ship velocity)
-PHASER_SPEED= $0340     ; Phaser bolt speed (3.25 units/frame)
+THRUST_ACC      = $000C     ; Balanced rocket thrust (12/256 unit/frame^2)
+MAX_VEL_HI      = $01       ; Clamp velocity to +/- $01A0 (~1.625 units/frame)
+MAX_VEL_LO      = $A0
+ROT_SPEED       = $0380     ; Crisp rotation (~1.2 sec per full 360 turn)
+TORP_SPEED      = $00D0     ; Slower ballistic torpedo (0.81 units/frame + ship vel) so gravity curves it!
+TORP_LIFE       = 175       ; 175 frames (~2.9 sec) flight life for orbital torpedo curves
+TORP_ARM_LIFE   = 160       ; Armed against own ship after 15 frames (0.25s launch clearance)
+PHASER_SPEED    = $0320     ; Fast straight-line phaser bolt (3.125 units/frame)
 
 ; Memory Layout ($2200 - $228F)
 sw_px       = $2200     ; (4) Ship 0, 1 X pos (8.8 fixed-point)
@@ -178,7 +180,7 @@ round_init
     lda #0
     sta sw_vx
     sta sw_vx+1
-    lda #$B0            ; Downward circular orbital velocity (+0.69 units/frame)
+    lda #$7C            ; Downward circular orbital velocity (+0.48 units/frame)
     sta sw_vy
     lda #0
     sta sw_vy+1
@@ -201,9 +203,9 @@ round_init
     lda #0
     sta sw_vx+2
     sta sw_vx+3
-    lda #<-$B0          ; Upward circular orbital velocity (-0.69 units/frame)
+    lda #<-$7C          ; Upward circular orbital velocity (-0.48 units/frame)
     sta sw_vy+2
-    lda #>-$B0
+    lda #>-$7C
     sta sw_vy+3
 
     lda #0              ; Facing North ($C000) along orbit
@@ -428,7 +430,7 @@ p1_fire_torpedo
 .p1_t_fire
     lda #18             ; 18-frame cooldown between torpedo launches
     sta sw_cloak
-    lda #110            ; 110 frames (~1.8 sec) flight life
+    lda #TORP_LIFE      ; 175 frames (~2.9 sec) flight life
     sta sw_tlife,x
     lda #0
     sta sw_towner,x
@@ -439,15 +441,22 @@ p1_fire_torpedo
     txa
     asl
     tay
+    M_ROTATE_IMM TORP_SPEED, sw_ang
+    ; Spawn torpedo 2x M_XR ahead of ship center and set velocity = V_ship + M_XR
+    clc
     lda sw_px
+    adc M_XR
     sta sw_tx,y
     lda sw_px+1
+    adc M_XR+1
     sta sw_tx+1,y
+    clc
     lda sw_py
+    adc M_YR
     sta sw_ty,y
     lda sw_py+1
+    adc M_YR+1
     sta sw_ty+1,y
-    M_ROTATE_IMM TORP_SPEED, sw_ang
     clc
     lda sw_vx
     adc M_XR
@@ -525,9 +534,9 @@ p2_fire_torpedo
 .p2_t_early
     rts
 .p2_t_fire
-    lda #20
+    lda #18
     sta sw_cloak+1
-    lda #110
+    lda #TORP_LIFE
     sta sw_tlife,x
     lda #1
     sta sw_towner,x
@@ -538,15 +547,21 @@ p2_fire_torpedo
     txa
     asl
     tay
+    M_ROTATE_IMM TORP_SPEED, sw_ang+2
+    clc
     lda sw_px+2
+    adc M_XR
     sta sw_tx,y
     lda sw_px+3
+    adc M_XR+1
     sta sw_tx+1,y
+    clc
     lda sw_py+2
+    adc M_YR
     sta sw_ty,y
     lda sw_py+3
+    adc M_YR+1
     sta sw_ty+1,y
-    M_ROTATE_IMM TORP_SPEED, sw_ang+2
     clc
     lda sw_vx+2
     adc M_XR
@@ -683,7 +698,22 @@ update_ship
     cmp #1
     beq .skip_gravity
 
+    lda #$08            ; Gentle, balanced ship gravity (K_GRAV = $08800000)
     jsr calc_sun_grav_vec
+
+    ; Cap ship gravity acceleration at $0007 near the solar corona
+    lda sw_tmp+1
+    bne .clamp_ship_grav
+    lda sw_tmp
+    cmp #$07
+    bcc .ship_grav_ok
+.clamp_ship_grav
+    lda #$07
+    sta sw_tmp
+    lda #0
+    sta sw_tmp+1
+.ship_grav_ok
+    jsr rotate_grav_vec
 
     ; Add gravitational pull to ship velocity
     clc
@@ -729,17 +759,17 @@ update_ship
 
 ; =========================================================================
 ; Shared Inverse-Square Gravity Routine: a = (K_GRAV / sw_len + 0.5) / sw_len
-; Input:  sw_len (distance to Sun), sw_dir (angle to Sun)
-; Output: M_XR, M_YR = gravitational acceleration vector
+; Input:  A = K_GRAV high byte ($08 for ships, $1C for torpedoes)
+;         sw_len (distance to Sun), sw_dir (angle to Sun)
+; Output: sw_tmp (16-bit magnitude); call rotate_grav_vec for M_XR, M_YR
 ; =========================================================================
 calc_sun_grav_vec
-    ; K_GRAV = $14000000 (2.25x stronger Newtonian pull, balanced with THRUST_ACC=$12)
+    sta M_N+3
     lda #0
     sta M_N
     sta M_N+1
+    lda #$80
     sta M_N+2
-    lda #$14
-    sta M_N+3
 
     lda sw_len
     sta M_D
@@ -777,20 +807,9 @@ calc_sun_grav_vec
     sta sw_tmp
     lda M_Q+1
     sta sw_tmp+1
+    rts
 
-    ; Cap gravity acceleration at $0010 near the solar corona (below THRUST_ACC=$12)
-    lda sw_tmp+1
-    bne .clamp_grav
-    lda sw_tmp
-    cmp #$10
-    bcc .grav_ok
-.clamp_grav
-    lda #$10
-    sta sw_tmp
-    lda #0
-    sta sw_tmp+1
-.grav_ok
-
+rotate_grav_vec
     ; If Repulsor mode (sw_grav == 2), flip direction 180 degrees
     lda sw_grav
     cmp #2
@@ -962,7 +981,9 @@ update_torpedoes
     ; Apply Sun gravity to torpedo trajectory (unless Zero-G)
     lda sw_grav
     cmp #1
-    beq .move_torp
+    bne .do_torp_grav
+    jmp .move_torp
+.do_torp_grav
 
     sec
     lda #<SUN_X
@@ -994,7 +1015,21 @@ update_torpedoes
     lda M_ANG+1
     sta sw_dir+1
 
+    lda #$1C            ; High gravity sensitivity for torpedoes ($1C800000) so shots curve!
     jsr calc_sun_grav_vec
+
+    lda sw_tmp+1
+    bne .clamp_torp_grav
+    lda sw_tmp
+    cmp #$16
+    bcc .torp_grav_rot
+.clamp_torp_grav
+    lda #$16
+    sta sw_tmp
+    lda #0
+    sta sw_tmp+1
+.torp_grav_rot
+    jsr rotate_grav_vec
 
     clc
     lda sw_tvx,y
@@ -1184,17 +1219,28 @@ check_collisions
     jmp .next_torp_col
 
 .torp_not_sun
-    ; Target ship index = sw_towner,x ^ 1
-    lda sw_towner,x
-    eor #1
-    tay
-    lda sw_alive,y
-    beq .next_torp_col
+    ; Check torpedo collision against BOTH ships (0 and 1), including own ship!
+    stx sw_tmp+1        ; Save torpedo loop index X (0..3)
+    lda #1
+    sta sw_tmp+3        ; sw_tmp+3 = ship index being tested (1 down to 0)
 
+.torp_ship_loop
+    ldy sw_tmp+3
+    lda sw_alive,y
+    beq .next_torp_ship
+
+    ; If testing against the torpedo's owner, allow 15 frames of launch clearance
+    tya
+    cmp sw_towner,x
+    bne .check_torp_dist
+    lda sw_tlife,x
+    cmp #TORP_ARM_LIFE
+    bcs .next_torp_ship
+
+.check_torp_dist
     tya
     asl
-    tay                 ; Y = target ship word offset (0 or 2)
-    stx sw_tmp+1        ; Save torpedo loop index X!
+    tay                 ; Y = ship word offset (0 or 2)
     ldx sw_tmp          ; X = torpedo word offset (0, 2, 4, 6)
 
     sec
@@ -1218,18 +1264,20 @@ check_collisions
     ; Hit if distance < 6 units ($0600)
     lda M_LEN+1
     cmp #6
-    bcs .next_torp_col
+    bcs .next_torp_ship
 
-    ; Torpedo HIT!
+    ; Torpedo HIT Ship (sw_tmp+3)!
     lda #0
     sta sw_tlife,x
-    lda sw_towner,x
-    eor #1
-    stx sw_tmp+1
-    tax
+    ldx sw_tmp+3
     lda #35             ; Torpedo deals 35 shield damage
     jsr apply_damage
     ldx sw_tmp+1
+    jmp .next_torp_col
+
+.next_torp_ship
+    dec sw_tmp+3
+    bpl .torp_ship_loop
 
 .next_torp_col
     dex

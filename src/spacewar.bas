@@ -231,6 +231,7 @@ title_loop
 
 title_check_fire
  if joy0fire && fire_wait = 0 then goto start_battle
+ if v_state = 1 then goto start_battle
  goto title_loop
 
 menu_move_up
