@@ -1,0 +1,13 @@
+build/work/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+*~
+# 7800basic intermediates
+src/*.bas.*
+src/7800.asm
+src/7800basic_variable_redefs.h
+src/includes.7800
+src/a78info.cfg
