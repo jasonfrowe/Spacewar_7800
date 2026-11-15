@@ -151,45 +151,45 @@
  dim v_fpy0    = $226C
  dim v_fpy1    = $226D
 
- rem ** 12 Photon Torpedo Slots (0..5 = Player 1, 6..11 = Player 2)
- dim v_tlife0  = $22D0
- dim v_tlife1  = $22D1
- dim v_tlife2  = $22D2
- dim v_tlife3  = $22D3
- dim v_tlife4  = $22D4
- dim v_tlife5  = $22D5
- dim v_tlife6  = $22D6
- dim v_tlife7  = $22D7
- dim v_tlife8  = $22D8
- dim v_tlife9  = $22D9
- dim v_tlife10 = $22DA
- dim v_tlife11 = $22DB
+ rem ** 12 Photon Torpedo Slots (0..5 = Player 1, 6..11 = Player 2) ($2270 - $229F)
+ dim v_tlife0  = $2270
+ dim v_tlife1  = $2271
+ dim v_tlife2  = $2272
+ dim v_tlife3  = $2273
+ dim v_tlife4  = $2274
+ dim v_tlife5  = $2275
+ dim v_tlife6  = $2276
+ dim v_tlife7  = $2277
+ dim v_tlife8  = $2278
+ dim v_tlife9  = $2279
+ dim v_tlife10 = $227A
+ dim v_tlife11 = $227B
 
- dim v_tsx0    = $22E8
- dim v_tsx1    = $22E9
- dim v_tsx2    = $22EA
- dim v_tsx3    = $22EB
- dim v_tsx4    = $22EC
- dim v_tsx5    = $22ED
- dim v_tsx6    = $22EE
- dim v_tsx7    = $22EF
- dim v_tsx8    = $22F0
- dim v_tsx9    = $22F1
- dim v_tsx10   = $22F2
- dim v_tsx11   = $22F3
+ dim v_tsx0    = $2288
+ dim v_tsx1    = $2289
+ dim v_tsx2    = $228A
+ dim v_tsx3    = $228B
+ dim v_tsx4    = $228C
+ dim v_tsx5    = $228D
+ dim v_tsx6    = $228E
+ dim v_tsx7    = $228F
+ dim v_tsx8    = $2290
+ dim v_tsx9    = $2291
+ dim v_tsx10   = $2292
+ dim v_tsx11   = $2293
 
- dim v_tsy0    = $22F4
- dim v_tsy1    = $22F5
- dim v_tsy2    = $22F6
- dim v_tsy3    = $22F7
- dim v_tsy4    = $22F8
- dim v_tsy5    = $22F9
- dim v_tsy6    = $22FA
- dim v_tsy7    = $22FB
- dim v_tsy8    = $22FC
- dim v_tsy9    = $22FD
- dim v_tsy10   = $22FE
- dim v_tsy11   = $22FF
+ dim v_tsy0    = $2294
+ dim v_tsy1    = $2295
+ dim v_tsy2    = $2296
+ dim v_tsy3    = $2297
+ dim v_tsy4    = $2298
+ dim v_tsy5    = $2299
+ dim v_tsy6    = $229A
+ dim v_tsy7    = $229B
+ dim v_tsy8    = $229C
+ dim v_tsy9    = $229D
+ dim v_tsy10   = $229E
+ dim v_tsy11   = $229F
 
  rem ** Verify AstroCart MathUnit & CORDIC Hardware Presence
  asm

@@ -109,15 +109,17 @@ sw_w1_asc   = $2268     ; (2) P2 Wins ASCII digits
 sw_fpx      = $226A     ; (2) Ship 0, 1 Thrust flame screen X
 sw_fpy      = $226C     ; (2) Ship 0, 1 Thrust flame screen Y
 
-; 12 Photon Torpedo Slots (0..5 = Player 1, 6..11 = Player 2) ($2270 - $22FF)
-sw_tx       = $2270     ; (24) Torpedo 0..11 X pos (8.8)
-sw_ty       = $2288     ; (24) Torpedo 0..11 Y pos (8.8)
-sw_tvx      = $22A0     ; (24) Torpedo 0..11 X vel
-sw_tvy      = $22B8     ; (24) Torpedo 0..11 Y vel
-sw_tlife    = $22D0     ; (12) Torpedo 0..11 lifetime (0=inactive)
-sw_towner   = $22DC     ; (12) Torpedo 0..11 owner (0 or 1)
-sw_tsx      = $22E8     ; (12) Torpedo 0..11 screen X
-sw_tsy      = $22F4     ; (12) Torpedo 0..11 screen Y
+; 12 Photon Torpedo Slots (0..5 = Player 1, 6..11 = Player 2)
+; Placed in 7800basic dedicated user RAM ($0140-$019F and $2270-$229F)
+; so they NEVER overlap MARIA Zone 15 Display List memory ($22B0+)!
+sw_tx       = $0140     ; (24) Torpedo 0..11 X pos (8.8) ($0140-$0157)
+sw_ty       = $0158     ; (24) Torpedo 0..11 Y pos (8.8) ($0158-$016F)
+sw_tvx      = $0170     ; (24) Torpedo 0..11 X vel       ($0170-$0187)
+sw_tvy      = $0188     ; (24) Torpedo 0..11 Y vel       ($0188-$019F)
+sw_tlife    = $2270     ; (12) Torpedo 0..11 lifetime    ($2270-$227B)
+sw_towner   = $227C     ; (12) Torpedo 0..11 owner (0/1) ($227C-$2287)
+sw_tsx      = $2288     ; (12) Torpedo 0..11 screen X    ($2288-$2293)
+sw_tsy      = $2294     ; (12) Torpedo 0..11 screen Y    ($2294-$229F)
 
 ; Macro: Rotate immediate 16-bit constant {1} by 16-bit angle at address {2}
     MAC M_ROTATE_IMM
