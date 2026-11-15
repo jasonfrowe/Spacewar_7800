@@ -32,6 +32,12 @@ ai_step
     inc sw_shield+1
 
 .check_sun_now
+    ; If sw_grav == 3 (No Planet & Zero-G), skip planet evasion completely!
+    lda sw_grav
+    cmp #3
+    bne .do_planet_avoid
+    jmp .check_combat
+.do_planet_avoid
     ; =====================================================================
     ; 1. Current Vector & Distance from AI Ship to Central Sun
     ; =====================================================================
@@ -253,8 +259,12 @@ ai_step
     lda M_LEN+1
     sta sw_len+1
 
-    ; Check if the Sun is directly blocking the line of sight to Player 1
-    ; (|lead_angle - sun_ang| < $0C, i.e. within +/- 16 degrees of the Sun's core)
+    ; Check if the Planet is directly blocking the line of sight to Player 1
+    ; (Skip if sw_grav == 3, No Planet mode)
+    lda sw_grav
+    cmp #3
+    beq .line_of_sight_clear
+
     sec
     lda sw_dir+1
     sbc sw_dx

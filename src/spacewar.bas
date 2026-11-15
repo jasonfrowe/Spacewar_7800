@@ -17,6 +17,14 @@
  incgraphic gfx/phaser.png 320A
  incgraphic gfx/flame.png 320A
  incgraphic gfx/dot.png 320A
+ incgraphic gfx/logo_t0.png 320A
+ incgraphic gfx/logo_t1.png 320A
+ incgraphic gfx/logo_t2.png 320A
+ incgraphic gfx/logo_t3.png 320A
+ incgraphic gfx/logo_b0.png 320A
+ incgraphic gfx/logo_b1.png 320A
+ incgraphic gfx/logo_b2.png 320A
+ incgraphic gfx/logo_b3.png 320A
 
  incgraphic gfx/exp_0.png 320A
  incgraphic gfx/exp_1.png 320A
@@ -204,37 +212,57 @@ end
  fire_wait = 1
 
  rem =====================================================================
- rem ** TITLE SCREEN MENU (UP/DOWN picks row, LEFT/RIGHT changes option)
+ rem ** TITLE SCREEN MENU (Authentic 1985 Bill Seiler DOS Layout)
  rem =====================================================================
 title_loop
  clearscreen
 
- plotchars 'SPACEWAR 7800' 1 54 1
- plotchars 'BILL SEILER 1985 DOS CLASSIC' 0 24 3
+ rem ** Starfield & Striped Planet in Top-Right Corner (matching 1985 DOS menu)
+ plotsprite dot 0 18 12
+ plotsprite dot 0 64 8
+ plotsprite dot 0 102 14
+ plotsprite sun 1 132 10
 
- rem ** Showcase Ships & Central Sun
- plotsprite needle_00 2 36 44
- plotsprite sun 1 76 44
- plotsprite wedge_08 3 116 44
+ rem ** Giant Beveled 1985 DOS "SPACEWAR" Title Banner (128x16 across X=48..112)
+ plotsprite logo_t0 0 48 20
+ plotsprite logo_t1 0 64 20
+ plotsprite logo_t2 0 80 20
+ plotsprite logo_t3 0 96 20
+ plotsprite logo_b0 0 48 28
+ plotsprite logo_b1 0 64 28
+ plotsprite logo_b2 0 80 28
+ plotsprite logo_b3 0 96 28
+
+ plotchars 'V1.50  (C) 1985 B SEILER' 0 32 5
+
+ rem ** Showcase Ships & Match Score Tally: [Ship1]=00    [Ship2]=00
+ plotsprite needle_00 2 38 54
+ plotchars '=' 0 50 7
+ plotchars v_w0_asc 2 58 7 2
+
+ plotsprite wedge_08 3 98 54
+ plotchars '=' 0 110 7
+ plotchars v_w1_asc 3 118 7 2
 
  rem ** Draw Cursor Arrow (>>) next to active row
- if menu_sel = 0 then plotchars '>>' 1 16 8
- if menu_sel = 1 then plotchars '>>' 1 16 10
- if menu_sel = 2 then plotchars '>>' 1 16 12
+ if menu_sel = 0 then plotchars '>>' 1 12 10
+ if menu_sel = 1 then plotchars '>>' 1 12 12
+ if menu_sel = 2 then plotchars '>>' 1 12 14
 
- rem ** Option 0: Game Mode (1P vs CPU or 2P Head-to-Head)
- if v_mode = 1 then plotchars 'PLAYERS:  < 1P VS CPU >' 2 28 8 else plotchars 'PLAYERS:  < 2P BATTLE >' 2 28 8
+ rem ** Option 0: Game Mode (1P vs Robot or 2P Battle)
+ if v_mode = 1 then plotchars 'PLAYERS: < 1P VS ROBOT >' 2 24 10 else plotchars 'PLAYERS: < 2P BATTLE   >' 2 24 10
 
- rem ** Option 1: Gravity Mode
- if v_grav = 0 then plotchars 'GRAVITY:  < NORMAL SUN >' 1 28 10
- if v_grav = 1 then plotchars 'GRAVITY:  < ZERO-G OFF >' 1 28 10
- if v_grav = 2 then plotchars 'GRAVITY:  < REPULSOR   >' 1 28 10
+ rem ** Option 1: Planet & Gravity Mode (matching [F3]Planet & [F4]Gravity)
+ if v_grav = 0 then plotchars 'GRAVITY: < PLANET+GRAV >' 1 24 12
+ if v_grav = 1 then plotchars 'GRAVITY: < PLANET ONLY >' 1 24 12
+ if v_grav = 2 then plotchars 'GRAVITY: < REPULSOR    >' 1 24 12
+ if v_grav = 3 then plotchars 'GRAVITY: < DEEP SPACE  >' 1 24 12
 
  rem ** Option 2: Arena Borders
- if v_wrap = 0 then plotchars 'BORDERS:  < WRAP EDGES >' 3 28 12 else plotchars 'BORDERS:  < BOUNCE WALL>' 3 28 12
+ if v_wrap = 0 then plotchars 'BORDERS: < WRAP EDGES  >' 3 24 14 else plotchars 'BORDERS: < BOUNCE WALL >' 3 24 14
 
- plotchars 'UP/DOWN: ROW   LEFT/RIGHT: SET' 0 20 16
- plotchars 'PRESS FIRE TO LAUNCH BATTLE' 1 26 18
+ plotchars 'UP/DOWN: ROW   LEFT/RIGHT: SET' 0 20 18
+ plotchars 'PRESS FIRE TO PLAY SPACEWAR' 1 26 20
 
  drawscreen
 
@@ -274,13 +302,13 @@ menu_change_left
  if menu_sel = 0 then v_mode = v_mode ^ 1 : return
  if menu_sel = 2 then v_wrap = v_wrap ^ 1 : return
  if v_grav > 0 then v_grav = v_grav - 1 : return
- v_grav = 2
+ v_grav = 3
  return
 
 menu_change_right
  if menu_sel = 0 then v_mode = v_mode ^ 1 : return
  if menu_sel = 2 then v_wrap = v_wrap ^ 1 : return
- if v_grav < 2 then v_grav = v_grav + 1 : return
+ if v_grav < 3 then v_grav = v_grav + 1 : return
  v_grav = 0
  return
 
@@ -327,23 +355,30 @@ end
  rem ** Render Frame
  clearscreen
 
- rem ** Top Telemetry Bar (Strictly within X = 4..154, zero wrap!)
+ rem ** Top Telemetry Bar (with low-shield blinking at S < 25 like DOS Spacewar!)
  plotchars 'P1 E:' 2 4 0
  plotchars v_e0_asc 2 24 0 2
  plotchars 'S:' 2 36 0
- plotchars v_s0_asc 2 44 0 2
+ tmp = v_frame & 4
+ if v_shield0 >= 25 || tmp = 0 then plotchars v_s0_asc 2 44 0 2
  plotchars 'W:' 2 56 0
  plotchars v_w0_asc 2 64 0 2
 
  if v_mode = 0 then plotchars 'P2 E:' 3 86 0 else plotchars 'AI E:' 3 86 0
  plotchars v_e1_asc 3 106 0 2
  plotchars 'S:' 3 118 0
- plotchars v_s1_asc 3 126 0 2
+ if v_shield1 >= 25 || tmp = 0 then plotchars v_s1_asc 3 126 0 2
  plotchars 'W:' 3 138 0
  plotchars v_w1_asc 3 146 0 2
 
- rem ** Draw Central Sun at (74, 96) -> center at (78, 100)
- plotsprite sun 1 74 96
+ rem ** Subtle Deep Space Starfield Reference Points
+ plotsprite dot 0 22 32
+ plotsprite dot 0 134 40
+ plotsprite dot 0 48 152
+ plotsprite dot 0 116 164
+
+ rem ** Draw Central Striped Planet at (74, 96) unless Deep Space mode (v_grav = 3)
+ if v_grav <> 3 then plotsprite sun 1 74 96
 
  rem ** Draw Player 1 (Needle) & Thrust Plume
  if v_alive0 = 0 then goto skip_draw_p1

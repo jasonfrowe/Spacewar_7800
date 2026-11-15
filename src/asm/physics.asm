@@ -215,10 +215,10 @@ round_init
     lda #$C0
     sta sw_ang+3
 
-    ; If Gravity is OFF (Deep Space), start with zero velocity
+    ; If Gravity is OFF (sw_grav == 1 or sw_grav == 3), start with zero velocity
     lda sw_grav
-    cmp #1
-    bne .keep_orb_vel
+    and #1
+    beq .keep_orb_vel
     lda #0
     sta sw_vy
     sta sw_vy+1
@@ -419,7 +419,7 @@ p1_fire_torpedo
     lda sw_cloak        ; Cooldown active?
     bne .p1_t_early
     lda sw_energy
-    cmp #3
+    cmp #1              ; Matches MISSILE_ENERGY = 1 in DOS Spacewar / alfredgg/spacewar
     bcc .p1_t_early
     ldx #0              ; Scan Player 1's 6 torpedo slots (0..5)
 .p1_find_slot
@@ -437,10 +437,7 @@ p1_fire_torpedo
     sta sw_tlife,x
     lda #0
     sta sw_towner,x
-    lda sw_energy
-    sec
-    sbc #3
-    sta sw_energy
+    dec sw_energy
     txa
     asl
     tay
@@ -525,7 +522,7 @@ p2_fire_torpedo
     lda sw_cloak+1
     bne .p2_t_early
     lda sw_energy+1
-    cmp #3
+    cmp #1              ; Matches MISSILE_ENERGY = 1 in DOS Spacewar / alfredgg/spacewar
     bcc .p2_t_early
     ldx #6              ; Scan Player 2's 6 torpedo slots (6..11)
 .p2_find_slot
@@ -543,10 +540,7 @@ p2_fire_torpedo
     sta sw_tlife,x
     lda #1
     sta sw_towner,x
-    lda sw_energy+1
-    sec
-    sbc #3
-    sta sw_energy+1
+    dec sw_energy+1
     txa
     asl
     tay
@@ -688,7 +682,12 @@ update_ship
     lda M_ANG+1
     sta sw_dir+1
 
-    ; Check collision with Central Sun (even in Zero-G, the star sits at center)
+    ; If sw_grav == 3 (No Planet & Zero-G), skip planet collision and gravity
+    lda sw_grav
+    cmp #3
+    beq .skip_gravity
+
+    ; Check collision with Central Planet
     lda sw_len+1
     cmp #SUN_RAD_HI
     bcs .not_in_sun
@@ -696,7 +695,7 @@ update_ship
     rts
 
 .not_in_sun
-    ; Check if Gravity is enabled (0 = Normal, 1 = Off, 2 = Repulsor)
+    ; Check if Gravity is enabled (0 = Planet+Grav, 1 = Planet Only, 2 = Repulsor)
     lda sw_grav
     cmp #1
     beq .skip_gravity
@@ -978,7 +977,12 @@ update_torpedoes
     asl
     tay
 
-    ; Compute vector from torpedo to Central Sun (for Sun collision & gravity)
+    ; If sw_grav == 3 (No Planet & Zero-G), skip planet collision and gravity
+    lda sw_grav
+    cmp #3
+    beq .move_torp
+
+    ; Compute vector from torpedo to Central Planet (for collision & gravity)
     sec
     lda #<SUN_X
     sbc sw_tx,y
@@ -1004,7 +1008,7 @@ update_torpedoes
     jmp .kill_torp
 .torp_not_in_sun
 
-    ; Apply Sun gravity to torpedo trajectory (unless Zero-G)
+    ; Apply Planet gravity to torpedo trajectory (unless Planet-Only Zero-G)
     lda sw_grav
     cmp #1
     beq .move_torp
