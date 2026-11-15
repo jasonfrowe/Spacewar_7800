@@ -89,7 +89,7 @@
  dim debounce = r
  dim fire_wait = s
 
- rem ** Memory-Mapped Variables from physics.asm ($2214 - $2293)
+ rem ** Memory-Mapped Variables from physics.asm ($2214 - $22FF)
  dim v_energy0 = $2214
  dim v_energy1 = $2215
  dim v_shield0 = $2216
@@ -101,61 +101,87 @@
  dim v_score0  = $221E
  dim v_score1  = $221F
 
- dim v_tlife0  = $2240
- dim v_tlife1  = $2241
- dim v_tlife2  = $2242
- dim v_tlife3  = $2243
+ dim v_llife0  = $2230
+ dim v_llife1  = $2231
 
- dim v_llife0  = $2258
- dim v_llife1  = $2259
+ dim v_ex0     = $2232
+ dim v_ex1     = $2233
+ dim v_ey0     = $2234
+ dim v_ey1     = $2235
+ dim v_eframe0 = $2236
+ dim v_eframe1 = $2237
+ dim v_etimer0 = $2238
+ dim v_etimer1 = $2239
 
- dim v_ex0     = $225A
- dim v_ex1     = $225B
- dim v_ey0     = $225C
- dim v_ey1     = $225D
- dim v_eframe0 = $225E
- dim v_eframe1 = $225F
- dim v_etimer0 = $2260
- dim v_etimer1 = $2261
+ dim v_sx0     = $223A
+ dim v_sx1     = $223B
+ dim v_sy0     = $223C
+ dim v_sy1     = $223D
+ dim v_sf0     = $223E
+ dim v_sf1     = $223F
 
- dim v_sx0     = $2262
- dim v_sx1     = $2263
- dim v_sy0     = $2264
- dim v_sy1     = $2265
- dim v_sf0     = $2266
- dim v_sf1     = $2267
+ dim v_mode    = $2240
+ dim v_grav    = $2241
+ dim v_wrap    = $2242
+ dim v_state   = $2243
+ dim v_timer   = $2245
+ dim v_frame   = $2246
 
- dim v_mode    = $2268
- dim v_grav    = $2269
- dim v_wrap    = $226A
- dim v_state   = $226B
- dim v_timer   = $226D
- dim v_frame   = $226E
+ dim v_lsx0    = $225A
+ dim v_lsx1    = $225B
+ dim v_lsy0    = $225C
+ dim v_lsy1    = $225D
 
- dim v_tsx0    = $2288
- dim v_tsx1    = $2289
- dim v_tsx2    = $228A
- dim v_tsx3    = $228B
- dim v_tsy0    = $228C
- dim v_tsy1    = $228D
- dim v_tsy2    = $228E
- dim v_tsy3    = $228F
+ dim v_e0_asc  = $225E
+ dim v_s0_asc  = $2260
+ dim v_w0_asc  = $2262
+ dim v_e1_asc  = $2264
+ dim v_s1_asc  = $2266
+ dim v_w1_asc  = $2268
+ dim v_fpx0    = $226A
+ dim v_fpx1    = $226B
+ dim v_fpy0    = $226C
+ dim v_fpy1    = $226D
 
- dim v_lsx0    = $2290
- dim v_lsx1    = $2291
- dim v_lsy0    = $2292
- dim v_lsy1    = $2293
+ rem ** 12 Photon Torpedo Slots (0..5 = Player 1, 6..11 = Player 2)
+ dim v_tlife0  = $22D0
+ dim v_tlife1  = $22D1
+ dim v_tlife2  = $22D2
+ dim v_tlife3  = $22D3
+ dim v_tlife4  = $22D4
+ dim v_tlife5  = $22D5
+ dim v_tlife6  = $22D6
+ dim v_tlife7  = $22D7
+ dim v_tlife8  = $22D8
+ dim v_tlife9  = $22D9
+ dim v_tlife10 = $22DA
+ dim v_tlife11 = $22DB
 
- dim v_e0_asc  = $2294
- dim v_s0_asc  = $2296
- dim v_w0_asc  = $2298
- dim v_e1_asc  = $229A
- dim v_s1_asc  = $229C
- dim v_w1_asc  = $229E
- dim v_fpx0    = $22A0
- dim v_fpx1    = $22A1
- dim v_fpy0    = $22A2
- dim v_fpy1    = $22A3
+ dim v_tsx0    = $22E8
+ dim v_tsx1    = $22E9
+ dim v_tsx2    = $22EA
+ dim v_tsx3    = $22EB
+ dim v_tsx4    = $22EC
+ dim v_tsx5    = $22ED
+ dim v_tsx6    = $22EE
+ dim v_tsx7    = $22EF
+ dim v_tsx8    = $22F0
+ dim v_tsx9    = $22F1
+ dim v_tsx10   = $22F2
+ dim v_tsx11   = $22F3
+
+ dim v_tsy0    = $22F4
+ dim v_tsy1    = $22F5
+ dim v_tsy2    = $22F6
+ dim v_tsy3    = $22F7
+ dim v_tsy4    = $22F8
+ dim v_tsy5    = $22F9
+ dim v_tsy6    = $22FA
+ dim v_tsy7    = $22FB
+ dim v_tsy8    = $22FC
+ dim v_tsy9    = $22FD
+ dim v_tsy10   = $22FE
+ dim v_tsy11   = $22FF
 
  rem ** Verify AstroCart MathUnit & CORDIC Hardware Presence
  asm
@@ -337,11 +363,19 @@ skip_draw_p1
  gosub plot_wedge
 skip_draw_p2
 
- rem ** Draw Active Photon Torpedoes
+ rem ** Draw Active Photon Torpedoes (6 per Player = 12 Total)
  if v_tlife0 > 0 then plotsprite torpedo 4 v_tsx0 v_tsy0
  if v_tlife1 > 0 then plotsprite torpedo 4 v_tsx1 v_tsy1
  if v_tlife2 > 0 then plotsprite torpedo 4 v_tsx2 v_tsy2
  if v_tlife3 > 0 then plotsprite torpedo 4 v_tsx3 v_tsy3
+ if v_tlife4 > 0 then plotsprite torpedo 4 v_tsx4 v_tsy4
+ if v_tlife5 > 0 then plotsprite torpedo 4 v_tsx5 v_tsy5
+ if v_tlife6 > 0 then plotsprite torpedo 4 v_tsx6 v_tsy6
+ if v_tlife7 > 0 then plotsprite torpedo 4 v_tsx7 v_tsy7
+ if v_tlife8 > 0 then plotsprite torpedo 4 v_tsx8 v_tsy8
+ if v_tlife9 > 0 then plotsprite torpedo 4 v_tsx9 v_tsy9
+ if v_tlife10 > 0 then plotsprite torpedo 4 v_tsx10 v_tsy10
+ if v_tlife11 > 0 then plotsprite torpedo 4 v_tsx11 v_tsy11
 
  rem ** Draw Active Phaser Bolts
  if v_llife0 > 0 then plotsprite phaser 5 v_lsx0 v_lsy0

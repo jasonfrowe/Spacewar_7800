@@ -352,29 +352,33 @@ ai_step
     cmp #24
     bcc .combat_done
 
-    ; Primary AI weapon: Photon Torpedoes!
-    ; If at very close range (< 22 units), mix Phasers and Torpedoes
+    ; Space AI shots slightly (every 4 frames when ready) so 6-torpedo salvos spread out
+    lda sw_frame
+    and #3
+    bne .combat_done
+
+    ; Primary AI weapon: Photon Torpedoes (Slots 6..11)!
+    ; If at close range (< 26 units), mix Phasers and Torpedoes
     lda sw_len+1
-    cmp #22
+    cmp #26
     bcc .close_dogfight
 
-    ; Medium/Long range (up to 135 units): Fire Photon Torpedoes first!
+    ; Medium/Long range (up to 135 units): Fire Photon Torpedoes!
     cmp #135
     bcs .combat_done
-    lda sw_tlife+2
-    beq .ai_torp
-    lda sw_tlife+3
-    beq .ai_torp
-
-    ; Both AI torpedoes are already in flight; if within 42 units, follow up with Phaser!
+    jsr p2_fire_torpedo
+    ; If all 6 AI torpedoes were already in flight (sw_cloak+1 still 0) and < 42 units, fire Phaser
+    lda sw_cloak+1
+    bne .combat_done
     lda sw_len+1
     cmp #42
     bcs .combat_done
     jmp p2_fire_phaser
 
 .close_dogfight
-    ; Close range: fire torpedo if slot open, else rapid phaser
-    lda sw_tlife+2
+    ; Close range: alternate between Photon Torpedoes and Phasers
+    lda sw_frame
+    and #8
     beq .ai_torp
     jmp p2_fire_phaser
 

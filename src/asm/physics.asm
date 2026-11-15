@@ -42,12 +42,13 @@ THRUST_ACC      = $000C     ; Balanced rocket thrust (12/256 unit/frame^2)
 MAX_VEL_HI      = $01       ; Clamp velocity to +/- $01A0 (~1.625 units/frame)
 MAX_VEL_LO      = $A0
 ROT_SPEED       = $0380     ; Crisp rotation (~1.2 sec per full 360 turn)
-TORP_SPEED      = $00D0     ; Slower ballistic torpedo (0.81 units/frame + ship vel) so gravity curves it!
-TORP_LIFE       = 175       ; 175 frames (~2.9 sec) flight life for orbital torpedo curves
-TORP_ARM_LIFE   = 160       ; Armed against own ship after 15 frames (0.25s launch clearance)
+MAX_TORPS       = 12        ; 12 simultaneous torpedoes (6 per player: 0..5 P1, 6..11 P2)
+TORP_SPEED      = $00C0     ; Tuned torpedo speed (0.75 units/frame + ship vel) for natural gravity curve
+TORP_LIFE       = 180       ; 180 frames (3.0 sec) flight life
+TORP_ARM_LIFE   = 164       ; Armed against own ship after 16 frames (0.26s launch clearance)
 PHASER_SPEED    = $0320     ; Fast straight-line phaser bolt (3.125 units/frame)
 
-; Memory Layout ($2200 - $228F)
+; Memory Layout ($2200 - $22FF: 256 bytes of dedicated Game State RAM)
 sw_px       = $2200     ; (4) Ship 0, 1 X pos (8.8 fixed-point)
 sw_py       = $2204     ; (4) Ship 0, 1 Y pos (8.8 fixed-point)
 sw_vx       = $2208     ; (4) Ship 0, 1 X vel (8.8 signed)
@@ -60,62 +61,63 @@ sw_alive    = $221A     ; (2) 1=alive, 0=destroyed
 sw_thrust   = $221C     ; (2) 1=thrusting this frame
 sw_score    = $221E     ; (2) Match wins (0-5)
 
-sw_tx       = $2220     ; (8) Torpedo 0..3 X pos (8.8)
-sw_ty       = $2228     ; (8) Torpedo 0..3 Y pos (8.8)
-sw_tvx      = $2230     ; (8) Torpedo 0..3 X vel
-sw_tvy      = $2238     ; (8) Torpedo 0..3 Y vel
-sw_tlife    = $2240     ; (4) Torpedo 0..3 lifetime (0=inactive)
-sw_towner   = $2244     ; (4) Torpedo 0..3 owner (0 or 1)
+sw_lx       = $2220     ; (4) Phaser 0..1 X pos (8.8)
+sw_ly       = $2224     ; (4) Phaser 0..1 Y pos (8.8)
+sw_lvx      = $2228     ; (4) Phaser 0..1 X vel
+sw_lvy      = $222C     ; (4) Phaser 0..1 Y vel
+sw_llife    = $2230     ; (2) Phaser 0..1 lifetime (0=inactive)
 
-sw_lx       = $2248     ; (4) Phaser 0..1 X pos (8.8)
-sw_ly       = $224C     ; (4) Phaser 0..1 Y pos (8.8)
-sw_lvx      = $2250     ; (4) Phaser 0..1 X vel
-sw_lvy      = $2254     ; (4) Phaser 0..1 Y vel
-sw_llife    = $2258     ; (2) Phaser 0..1 lifetime (0=inactive)
+sw_ex       = $2232     ; (2) Explosion X (screen coords)
+sw_ey       = $2234     ; (2) Explosion Y (screen coords)
+sw_eframe   = $2236     ; (2) Explosion frame (0-3)
+sw_etimer   = $2238     ; (2) Explosion timer
 
-sw_ex       = $225A     ; (2) Explosion X (screen coords)
-sw_ey       = $225C     ; (2) Explosion Y (screen coords)
-sw_eframe   = $225E     ; (2) Explosion frame (0-3)
-sw_etimer   = $2260     ; (2) Explosion timer
+sw_sx       = $223A     ; (2) Ship 0, 1 screen X
+sw_sy       = $223C     ; (2) Ship 0, 1 screen Y
+sw_sframe   = $223E     ; (2) Ship 0, 1 rotation frame (0-15)
 
-sw_sx       = $2262     ; (2) Ship 0, 1 screen X
-sw_sy       = $2264     ; (2) Ship 0, 1 screen Y
-sw_sframe   = $2266     ; (2) Ship 0, 1 rotation frame (0-15)
+sw_mode     = $2240     ; 0 = 2P Battle, 1 = 1P vs CPU (Default = 1)
+sw_grav     = $2241     ; 0 = Normal Sun, 1 = Zero-G, 2 = Repulsor Sun
+sw_wrap     = $2242     ; 0 = Wrap Around, 1 = Bounce Walls
+sw_state    = $2243     ; 0 = Menu, 1 = Playing, 2 = Round Over
+sw_winner   = $2244     ; Last round winner
+sw_timer    = $2245     ; Round transition timer
+sw_frame    = $2246     ; Global frame counter
 
-sw_mode     = $2268     ; 0 = 2P Battle, 1 = 1P vs CPU (Default = 1)
-sw_grav     = $2269     ; 0 = Normal Sun, 1 = Zero-G, 2 = Repulsor Sun
-sw_wrap     = $226A     ; 0 = Wrap Around, 1 = Bounce Walls
-sw_state    = $226B     ; 0 = Menu, 1 = Playing, 2 = Round Over
-sw_winner   = $226C     ; Last round winner
-sw_timer    = $226D     ; Round transition timer
-sw_frame    = $226E     ; Global frame counter
+sfx_ch0_id      = $2248
+sfx_ch0_timer   = $2249
+sfx_ch0_step    = $224A
+sfx_ch1_id      = $224B
+sfx_ch1_timer   = $224C
+sfx_ch1_step    = $224D
 
-sfx_ch0_id      = $2270
-sfx_ch0_timer   = $2271
-sfx_ch0_step    = $2272
-sfx_ch1_id      = $2273
-sfx_ch1_timer   = $2274
-sfx_ch1_step    = $2275
+sw_tmp      = $224E     ; (4) Scratch
+sw_dx       = $2252     ; (2)
+sw_dy       = $2254     ; (2)
+sw_len      = $2256     ; (2)
+sw_dir      = $2258     ; (2)
 
-sw_tmp      = $2276     ; (4) Scratch
-sw_dx       = $227A     ; (2)
-sw_dy       = $227C     ; (2)
-sw_len      = $227E     ; (2)
-sw_dir      = $2280     ; (2)
+; Precomputed ASCII HUD digits & projectile screen coords
+sw_lsx      = $225A     ; (2) Phaser 0..1 screen X
+sw_lsy      = $225C     ; (2) Phaser 0..1 screen Y
+sw_e0_asc   = $225E     ; (2) P1 Energy ASCII digits
+sw_s0_asc   = $2260     ; (2) P1 Shield ASCII digits
+sw_w0_asc   = $2262     ; (2) P1 Wins ASCII digits
+sw_e1_asc   = $2264     ; (2) P2 Energy ASCII digits
+sw_s1_asc   = $2266     ; (2) P2 Shield ASCII digits
+sw_w1_asc   = $2268     ; (2) P2 Wins ASCII digits
+sw_fpx      = $226A     ; (2) Ship 0, 1 Thrust flame screen X
+sw_fpy      = $226C     ; (2) Ship 0, 1 Thrust flame screen Y
 
-; Precomputed ASCII HUD digits & projectile screen coords ($2282 - $22A5)
-sw_tsx      = $2288     ; (4) Torpedo 0..3 screen X
-sw_tsy      = $228C     ; (4) Torpedo 0..3 screen Y
-sw_lsx      = $2290     ; (2) Phaser 0..1 screen X
-sw_lsy      = $2292     ; (2) Phaser 0..1 screen Y
-sw_e0_asc   = $2294     ; (2) P1 Energy ASCII digits
-sw_s0_asc   = $2296     ; (2) P1 Shield ASCII digits
-sw_w0_asc   = $2298     ; (2) P1 Wins ASCII digits
-sw_e1_asc   = $229A     ; (2) P2 Energy ASCII digits
-sw_s1_asc   = $229C     ; (2) P2 Shield ASCII digits
-sw_w1_asc   = $229E     ; (2) P2 Wins ASCII digits
-sw_fpx      = $22A0     ; (2) Ship 0, 1 Thrust flame screen X
-sw_fpy      = $22A2     ; (2) Ship 0, 1 Thrust flame screen Y
+; 12 Photon Torpedo Slots (0..5 = Player 1, 6..11 = Player 2) ($2270 - $22FF)
+sw_tx       = $2270     ; (24) Torpedo 0..11 X pos (8.8)
+sw_ty       = $2288     ; (24) Torpedo 0..11 Y pos (8.8)
+sw_tvx      = $22A0     ; (24) Torpedo 0..11 X vel
+sw_tvy      = $22B8     ; (24) Torpedo 0..11 Y vel
+sw_tlife    = $22D0     ; (12) Torpedo 0..11 lifetime (0=inactive)
+sw_towner   = $22DC     ; (12) Torpedo 0..11 owner (0 or 1)
+sw_tsx      = $22E8     ; (12) Torpedo 0..11 screen X
+sw_tsy      = $22F4     ; (12) Torpedo 0..11 screen Y
 
 ; Macro: Rotate immediate 16-bit constant {1} by 16-bit angle at address {2}
     MAC M_ROTATE_IMM
@@ -242,7 +244,7 @@ round_init
     sta sw_thrust+1
 
     ; Clear active weapons and explosions
-    ldx #3
+    ldx #MAX_TORPS-1
 .clr_torp
     lda #0
     sta sw_tlife,x
@@ -417,32 +419,32 @@ p1_fire_torpedo
     lda sw_cloak        ; Cooldown active?
     bne .p1_t_early
     lda sw_energy
-    cmp #6
+    cmp #3
     bcc .p1_t_early
-    ldx #0
-    lda sw_tlife
+    ldx #0              ; Scan Player 1's 6 torpedo slots (0..5)
+.p1_find_slot
+    lda sw_tlife,x
     beq .p1_t_fire
-    ldx #1
-    lda sw_tlife+1
-    beq .p1_t_fire
+    inx
+    cpx #6
+    bcc .p1_find_slot
 .p1_t_early
     rts
 .p1_t_fire
-    lda #18             ; 18-frame cooldown between torpedo launches
+    lda #10             ; 10-frame rapid cooldown between torpedo launches
     sta sw_cloak
-    lda #TORP_LIFE      ; 175 frames (~2.9 sec) flight life
+    lda #TORP_LIFE      ; 180 frames (3.0 sec) flight life
     sta sw_tlife,x
     lda #0
     sta sw_towner,x
     lda sw_energy
     sec
-    sbc #6
+    sbc #3
     sta sw_energy
     txa
     asl
     tay
     M_ROTATE_IMM TORP_SPEED, sw_ang
-    ; Spawn torpedo 2x M_XR ahead of ship center and set velocity = V_ship + M_XR
     clc
     lda sw_px
     adc M_XR
@@ -523,18 +525,19 @@ p2_fire_torpedo
     lda sw_cloak+1
     bne .p2_t_early
     lda sw_energy+1
-    cmp #6
+    cmp #3
     bcc .p2_t_early
-    ldx #2
-    lda sw_tlife+2
+    ldx #6              ; Scan Player 2's 6 torpedo slots (6..11)
+.p2_find_slot
+    lda sw_tlife,x
     beq .p2_t_fire
-    ldx #3
-    lda sw_tlife+3
-    beq .p2_t_fire
+    inx
+    cpx #12
+    bcc .p2_find_slot
 .p2_t_early
     rts
 .p2_t_fire
-    lda #18
+    lda #10             ; 10-frame rapid cooldown between torpedo launches
     sta sw_cloak+1
     lda #TORP_LIFE
     sta sw_tlife,x
@@ -542,7 +545,7 @@ p2_fire_torpedo
     sta sw_towner,x
     lda sw_energy+1
     sec
-    sbc #6
+    sbc #3
     sta sw_energy+1
     txa
     asl
@@ -698,22 +701,7 @@ update_ship
     cmp #1
     beq .skip_gravity
 
-    lda #$08            ; Gentle, balanced ship gravity (K_GRAV = $08800000)
     jsr calc_sun_grav_vec
-
-    ; Cap ship gravity acceleration at $0007 near the solar corona
-    lda sw_tmp+1
-    bne .clamp_ship_grav
-    lda sw_tmp
-    cmp #$07
-    bcc .ship_grav_ok
-.clamp_ship_grav
-    lda #$07
-    sta sw_tmp
-    lda #0
-    sta sw_tmp+1
-.ship_grav_ok
-    jsr rotate_grav_vec
 
     ; Add gravitational pull to ship velocity
     clc
@@ -759,17 +747,18 @@ update_ship
 
 ; =========================================================================
 ; Shared Inverse-Square Gravity Routine: a = (K_GRAV / sw_len + 0.5) / sw_len
-; Input:  A = K_GRAV high byte ($08 for ships, $1C for torpedoes)
-;         sw_len (distance to Sun), sw_dir (angle to Sun)
-; Output: sw_tmp (16-bit magnitude); call rotate_grav_vec for M_XR, M_YR
+; Uses identical Newtonian constant ($08800000) for both Ships and Torpedoes!
+; Input:  sw_len (distance to Sun), sw_dir (angle to Sun)
+; Output: M_XR, M_YR = gravitational acceleration vector
 ; =========================================================================
 calc_sun_grav_vec
-    sta M_N+3
     lda #0
     sta M_N
     sta M_N+1
     lda #$80
     sta M_N+2
+    lda #$08
+    sta M_N+3
 
     lda sw_len
     sta M_D
@@ -807,9 +796,20 @@ calc_sun_grav_vec
     sta sw_tmp
     lda M_Q+1
     sta sw_tmp+1
-    rts
 
-rotate_grav_vec
+    ; Cap gravity acceleration at $0007 near the solar corona
+    lda sw_tmp+1
+    bne .clamp_grav
+    lda sw_tmp
+    cmp #$07
+    bcc .grav_ok
+.clamp_grav
+    lda #$07
+    sta sw_tmp
+    lda #0
+    sta sw_tmp+1
+.grav_ok
+
     ; If Repulsor mode (sw_grav == 2), flip direction 180 degrees
     lda sw_grav
     cmp #2
@@ -963,10 +963,10 @@ handle_screen_boundary
     rts
 
 ; =========================================================================
-; Update Active Photon Torpedoes
+; Update Active Photon Torpedoes (Slots 0..11)
 ; =========================================================================
 update_torpedoes
-    ldx #3
+    ldx #MAX_TORPS-1
 .torp_loop
     lda sw_tlife,x
     bne .torp_is_alive
@@ -978,13 +978,7 @@ update_torpedoes
     asl
     tay
 
-    ; Apply Sun gravity to torpedo trajectory (unless Zero-G)
-    lda sw_grav
-    cmp #1
-    bne .do_torp_grav
-    jmp .move_torp
-.do_torp_grav
-
+    ; Compute vector from torpedo to Central Sun (for Sun collision & gravity)
     sec
     lda #<SUN_X
     sbc sw_tx,y
@@ -1006,30 +1000,21 @@ update_torpedoes
     lda M_LEN+1
     sta sw_len+1
     cmp #SUN_RAD_HI
-    bcs .torp_grav_ok
+    bcs .torp_not_in_sun
     jmp .kill_torp
-.torp_grav_ok
+.torp_not_in_sun
+
+    ; Apply Sun gravity to torpedo trajectory (unless Zero-G)
+    lda sw_grav
+    cmp #1
+    beq .move_torp
 
     lda M_ANG
     sta sw_dir
     lda M_ANG+1
     sta sw_dir+1
 
-    lda #$1C            ; High gravity sensitivity for torpedoes ($1C800000) so shots curve!
     jsr calc_sun_grav_vec
-
-    lda sw_tmp+1
-    bne .clamp_torp_grav
-    lda sw_tmp
-    cmp #$16
-    bcc .torp_grav_rot
-.clamp_torp_grav
-    lda #$16
-    sta sw_tmp
-    lda #0
-    sta sw_tmp+1
-.torp_grav_rot
-    jsr rotate_grav_vec
 
     clc
     lda sw_tvx,y
@@ -1183,8 +1168,8 @@ update_explosions
 ; Check Collisions: Torpedoes, Phasers & Ship-to-Ship
 ; =========================================================================
 check_collisions
-    ; 1. Torpedo vs Target Ship & Sun
-    ldx #3
+    ; 1. Torpedo vs Ships (Slots 0..11 against both Ship 0 and Ship 1)
+    ldx #MAX_TORPS-1
 .torp_col_loop
     lda sw_tlife,x
     bne .torp_col_active
@@ -1195,32 +1180,8 @@ check_collisions
     asl
     sta sw_tmp          ; sw_tmp = 2 * X (torpedo word offset)
 
-    ; Check if torpedo hit the Sun
-    ldy sw_tmp
-    sec
-    lda sw_tx,y
-    sbc #<SUN_X
-    sta M_X
-    lda sw_tx+1,y
-    sbc #>SUN_X
-    sta M_X+1
-    sec
-    lda sw_ty,y
-    sbc #<SUN_Y
-    sta M_Y
-    lda sw_ty+1,y
-    sbc #>SUN_Y
-    sta M_Y+1
-    lda M_LEN+1
-    cmp #SUN_RAD_HI
-    bcs .torp_not_sun
-    lda #0
-    sta sw_tlife,x
-    jmp .next_torp_col
-
-.torp_not_sun
     ; Check torpedo collision against BOTH ships (0 and 1), including own ship!
-    stx sw_tmp+1        ; Save torpedo loop index X (0..3)
+    stx sw_tmp+1        ; Save torpedo loop index X (0..11)
     lda #1
     sta sw_tmp+3        ; sw_tmp+3 = ship index being tested (1 down to 0)
 
@@ -1532,7 +1493,7 @@ update_screen_coords
     ora #$30
     sta sw_w1_asc+1
 
-    ; 2. Torpedoes 0..3
+    ; 2. Torpedoes 0..11
     ldx #0
 .torp_sc_loop
     txa
@@ -1547,7 +1508,7 @@ update_screen_coords
     sbc #4
     sta sw_tsy,x
     inx
-    cpx #4
+    cpx #MAX_TORPS
     bcc .torp_sc_loop
 
     ; 3. Phasers 0..1
