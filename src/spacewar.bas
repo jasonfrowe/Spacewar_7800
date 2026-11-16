@@ -245,21 +245,21 @@ title_loop
  plotchars v_w1_asc 3 118 7 2
 
  rem ** Draw Cursor Arrow (>>) next to active row
- if menu_sel = 0 then plotchars '>>' 1 12 10
- if menu_sel = 1 then plotchars '>>' 1 12 12
- if menu_sel = 2 then plotchars '>>' 1 12 14
+ if menu_sel = 0 then plotchars '>>' 1 20 10
+ if menu_sel = 1 then plotchars '>>' 1 20 12
+ if menu_sel = 2 then plotchars '>>' 1 20 14
 
  rem ** Option 0: Game Mode (1P vs Robot or 2P Battle)
- if v_mode = 1 then plotchars 'PLAYERS: < 1P VS ROBOT >' 2 24 10 else plotchars 'PLAYERS: < 2P BATTLE   >' 2 24 10
+ if v_mode = 1 then plotchars 'PLAYERS: < 1P VS ROBOT >' 2 32 10 else plotchars 'PLAYERS: < 2P BATTLE   >' 2 32 10
 
  rem ** Option 1: Planet & Gravity Mode (matching [F3]Planet & [F4]Gravity)
- if v_grav = 0 then plotchars 'GRAVITY: < PLANET+GRAV >' 1 24 12
- if v_grav = 1 then plotchars 'GRAVITY: < PLANET ONLY >' 1 24 12
- if v_grav = 2 then plotchars 'GRAVITY: < REPULSOR    >' 1 24 12
- if v_grav = 3 then plotchars 'GRAVITY: < DEEP SPACE  >' 1 24 12
+ if v_grav = 0 then plotchars 'GRAVITY: < PLANET+GRAV >' 1 32 12
+ if v_grav = 1 then plotchars 'GRAVITY: < PLANET ONLY >' 1 32 12
+ if v_grav = 2 then plotchars 'GRAVITY: < REPULSOR    >' 1 32 12
+ if v_grav = 3 then plotchars 'GRAVITY: < DEEP SPACE  >' 1 32 12
 
  rem ** Option 2: Arena Borders
- if v_wrap = 0 then plotchars 'BORDERS: < WRAP EDGES  >' 3 24 14 else plotchars 'BORDERS: < BOUNCE WALL >' 3 24 14
+ if v_wrap = 0 then plotchars 'BORDERS: < WRAP EDGES  >' 3 32 14 else plotchars 'BORDERS: < BOUNCE WALL >' 3 32 14
 
  plotchars 'UP/DOWN: ROW   LEFT/RIGHT: SET' 0 20 18
  plotchars 'PRESS FIRE TO PLAY SPACEWAR' 1 26 20
@@ -496,8 +496,8 @@ end
  return
 
 handle_round_over
- if v_score0 >= 5 then plotchars 'PLAYER 1 WINS THE MATCH!' 2 32 10 : plotchars 'PRESS FIRE FOR MENU' 0 42 12 : goto match_over_check
- if v_score1 >= 5 then plotchars 'PLAYER 2 WINS THE MATCH!' 3 32 10 : plotchars 'PRESS FIRE FOR MENU' 0 42 12 : goto match_over_check
+ if v_score0 >= 5 then plotchars 'PLAYER 1 WINS THE MATCH!' 2 32 10 : plotchars 'PRESS FIRE FOR MENU' 0 42 13 : goto match_over_check
+ if v_score1 >= 5 then plotchars 'PLAYER 2 WINS THE MATCH!' 3 32 10 : plotchars 'PRESS FIRE FOR MENU' 0 42 13 : goto match_over_check
  plotchars 'ROUND COMPLETE' 0 52 10
  if v_timer > 0 then v_timer = v_timer - 1 : return
  v_state = 1
