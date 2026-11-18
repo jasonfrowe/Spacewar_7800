@@ -2,7 +2,9 @@
 
 An authentic port of Bill Seiler's legendary 1985 DOS classic *Spacewar* for the Atari 7800 ProSystem, supercharged with the **AstroCart FPGA MathUnit & CORDIC Co-Processor**.
 
-![Spacewar 7800 Gameplay](docs/spacewar_gameplay.gif)
+[![Spacewar 7800 gameplay: click to play it in your browser](docs/spacewar_gameplay.gif)](https://jasonfrowe.github.io/Spacewar_7800/)
+
+**[▶ Play it in your browser](https://jasonfrowe.github.io/Spacewar_7800/)** (keyboard or gamepad), or on [jasonrowe.org](https://jasonrowe.org/Atari7800/spacewar/). It runs in [js7800_astrocart](https://github.com/jasonfrowe/js7800_astrocart), an Atari 7800 emulator with the AstroCart's math unit and second POKEY.
 
 Written in [7800basic](https://github.com/7800-devtools/7800basic) and 6502 assembly, with full Maria high-resolution 320A graphics, two-channel TIA stereo sound, real-time Newtonian $1/r^2$ gravity physics, and an intelligent computer autopilot.
 
