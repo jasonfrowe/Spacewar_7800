@@ -1,0 +1,25 @@
+{
+  "slug": "spacewar",
+  "title": "Spacewar 7800",
+  "title_accent": "7800",
+  "tagline": "Bill Seiler's 1985 Spacewar, on the Atari 7800 and the AstroCart",
+  "rom": "build/spacewar.a78",
+  "build": "tools/build.sh",
+  "ready": "Press Z to play. Click or press a key for sound.",
+  "controls": [
+    ["Rotate", "[←] [→]"],
+    ["Thrust", "[↑] (uses energy)"],
+    ["Shields", "[↓] (drain energy while up)"],
+    ["Primary weapon", "[Z]"],
+    ["Secondary weapon / hyperspace", "[X]"],
+    ["Options (players, gravity, borders)", "[↑] [↓] [←] [→] on the title; [F2] Select"],
+    ["Start / restart", "[Z] or [F3] Reset"]
+  ],
+  "about": [
+    "A port of Bill Seiler's 1985 DOS <em>Spacewar</em>: two ships duel around a sun, with real 1/r&sup2; gravity, against the computer or a friend on the second set of keys.",
+    "The Needle carries photon torpedoes and a cloak, the Wedge phasers and hyperspace. Gravity can be normal, reversed or off, and the edges wrap or bounce.",
+    "The gravity and the ships' turning run on the AstroCart's math unit: its CORDIC block rotates the vectors and its divider computes the pull of the sun."
+  ],
+  "repo": "https://github.com/jasonfrowe/Spacewar_7800",
+  "image": "docs/spacewar_gameplay.gif"
+}
