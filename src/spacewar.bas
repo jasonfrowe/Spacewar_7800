@@ -266,6 +266,11 @@ title_loop
 
  drawscreen
 
+ asm
+ inc sw_frame
+ lda $043E
+end
+
  if debounce > 0 then debounce = debounce - 1
 
  rem ** Wait for fire button release before accepting Fire to start
@@ -285,7 +290,6 @@ title_loop
 
 title_check_fire
  if joy0fire && fire_wait = 0 then goto start_battle
- if v_state = 1 then goto start_battle
  goto title_loop
 
 menu_move_up
@@ -324,7 +328,7 @@ end
  rem ** MAIN 60HZ GAMEPLAY LOOP
  rem =====================================================================
 game_loop
- if switchreset then fire_wait = 1 : debounce = 15 : goto title_loop
+ if switchreset then gosub reset_to_title : goto title_loop
 
  rem ** Player 1 Controls (Needle)
  if v_alive0 = 0 then goto skip_p1_input
@@ -508,7 +512,16 @@ end
 
 match_over_check
  if v_timer > 0 then v_timer = v_timer - 1 : return
- if joy0fire then fire_wait = 1 : debounce = 15 : pop : goto title_loop
+ if joy0fire then gosub reset_to_title : pop : goto title_loop
+ return
+
+reset_to_title
+ v_state = 0
+ fire_wait = 1
+ debounce = 15
+ asm
+ jsr sound_init
+end
  return
 
 plot_needle

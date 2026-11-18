@@ -108,6 +108,8 @@ sw_s1_asc   = $2266     ; (2) P2 Shield ASCII digits
 sw_w1_asc   = $2268     ; (2) P2 Wins ASCII digits
 sw_fpx      = $226A     ; (2) Ship 0, 1 Thrust flame screen X
 sw_fpy      = $226C     ; (2) Ship 0, 1 Thrust flame screen Y
+sw_ai_tac   = $226E     ; (1) AI random opening angle / strafe offset
+sw_ai_tmr   = $226F     ; (1) AI maneuver timer (bit 7 = opening break phase)
 
 ; 12 Photon Torpedo Slots (0..5 = Player 1, 6..11 = Player 2)
 ; Placed in 7800basic dedicated user RAM ($0140-$019F and $2270-$229F)
@@ -171,6 +173,9 @@ spacewar_init
 
 ; Initialize a single combat round
 round_init
+    ; Step hardware xorshift PRNG ($043E)
+    lda M_RND
+
     ; Player 1 (Needle): Starts on Left (X=34, Y=100), orbiting downward
     lda #0
     sta sw_px
@@ -218,6 +223,10 @@ round_init
     sta sw_ang+3
 
     ; If Gravity is OFF (sw_grav == 1 or sw_grav == 3), start with zero velocity
+    ; and give the AI an unpredictable initial drift vector via CORDIC while facing Player 1!
+    lda #0
+    sta sw_ai_tac
+    sta sw_ai_tmr
     lda sw_grav
     and #1
     beq .keep_orb_vel
@@ -226,6 +235,40 @@ round_init
     sta sw_vy+1
     sta sw_vy+2
     sta sw_vy+3
+
+    lda M_RND
+    eor sw_frame
+    and #7
+    tax
+    lda ai_open_angles,x
+    sta sw_ai_tac
+    lda sw_mode
+    cmp #1
+    bne .keep_orb_vel
+    ; Rotate cruise speed ($0044) by random angle sw_ai_tac for unpredictable opening drift
+    lda #$44
+    sta M_X
+    lda #0
+    sta M_X+1
+    sta M_Y
+    sta M_Y+1
+    sta M_T
+    lda sw_ai_tac
+    sta M_T+1
+    lda M_XR
+    sta sw_vx+2
+    lda M_XR+1
+    sta sw_vx+3
+    lda M_YR
+    sta sw_vy+2
+    lda M_YR+1
+    sta sw_vy+3
+    ; Point AI roughly toward Player 1 (+/- random offset) so it aims immediately
+    lda sw_ai_tac
+    and #$3F
+    clc
+    adc #$60            ; Heading in $60..$9F (West-Southwest to West-Northwest)
+    sta sw_ang+3
 .keep_orb_vel
 
     ; Initial Energy & Shields (99 max for clean 2-digit HUD)
@@ -238,8 +281,9 @@ round_init
     lda #1
     sta sw_alive
     sta sw_alive+1
-    lda #15             ; 15-frame initial safety cooldown so start fire doesn't shoot
+    lda #15             ; 15-frame initial safety cooldown for P1
     sta sw_cloak
+    lda #30             ; AI waits 30 frames into the round to observe Player 1 first!
     sta sw_cloak+1
     lda #0
     sta sw_thrust
@@ -380,14 +424,14 @@ p1_fire_phaser
     lda sw_llife
     bne .p1_ph_done
     lda sw_energy
-    cmp #4
+    cmp #6              ; Meaningful 6-energy reactor cost per Phaser burst
     bcc .p1_ph_done
     sec
-    sbc #4
+    sbc #6
     sta sw_energy
-    lda #12             ; 12-frame cooldown
+    lda #16             ; 16-frame cooldown
     sta sw_cloak
-    lda #28             ; 28-frame range
+    lda #14             ; 14-frame reach (~44 screen units = 30% of arena width)
     sta sw_llife
     lda sw_px
     sta sw_lx
@@ -421,7 +465,7 @@ p1_fire_torpedo
     lda sw_cloak        ; Cooldown active?
     bne .p1_t_early
     lda sw_energy
-    cmp #1              ; Matches MISSILE_ENERGY = 1 in DOS Spacewar / alfredgg/spacewar
+    cmp #2              ; 2-energy reactor cost per Photon Torpedo
     bcc .p1_t_early
     ldx #0              ; Scan Player 1's 6 torpedo slots (0..5)
 .p1_find_slot
@@ -433,13 +477,16 @@ p1_fire_torpedo
 .p1_t_early
     rts
 .p1_t_fire
-    lda #10             ; 10-frame rapid cooldown between torpedo launches
+    lda #14             ; 14-frame cooldown between torpedo launches
     sta sw_cloak
     lda #TORP_LIFE      ; 180 frames (3.0 sec) flight life
     sta sw_tlife,x
     lda #0
     sta sw_towner,x
-    dec sw_energy
+    lda sw_energy
+    sec
+    sbc #2
+    sta sw_energy
     txa
     asl
     tay
@@ -483,14 +530,14 @@ p2_fire_phaser
     lda sw_llife+1
     bne .p2_ph_done
     lda sw_energy+1
-    cmp #4
+    cmp #6              ; Meaningful 6-energy reactor cost per Phaser burst
     bcc .p2_ph_done
     sec
-    sbc #4
+    sbc #6
     sta sw_energy+1
-    lda #12
+    lda #16             ; 16-frame cooldown
     sta sw_cloak+1
-    lda #28
+    lda #14             ; 14-frame reach (~44 screen units = 30% of arena width)
     sta sw_llife+1
     lda sw_px+2
     sta sw_lx+2
@@ -524,7 +571,7 @@ p2_fire_torpedo
     lda sw_cloak+1
     bne .p2_t_early
     lda sw_energy+1
-    cmp #1              ; Matches MISSILE_ENERGY = 1 in DOS Spacewar / alfredgg/spacewar
+    cmp #2              ; 2-energy reactor cost per Photon Torpedo
     bcc .p2_t_early
     ldx #6              ; Scan Player 2's 6 torpedo slots (6..11)
 .p2_find_slot
@@ -536,13 +583,16 @@ p2_fire_torpedo
 .p2_t_early
     rts
 .p2_t_fire
-    lda #10             ; 10-frame rapid cooldown between torpedo launches
+    lda #14             ; 14-frame cooldown between torpedo launches
     sta sw_cloak+1
     lda #TORP_LIFE
     sta sw_tlife,x
     lda #1
     sta sw_towner,x
-    dec sw_energy+1
+    lda sw_energy+1
+    sec
+    sbc #2
+    sta sw_energy+1
     txa
     asl
     tay
